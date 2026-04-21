@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR · Juan Carlos Córdova</title>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+
+  /* Loading fullscreen */
+  #loading{
+    position:fixed;inset:0;z-index:999;
+    background:#031c0c;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:16px;
+    transition:opacity 0.4s;
+  }
+  #loading.fade{opacity:0;pointer-events:none;}
+  .ld-ring{
+    width:44px;height:44px;
+    border:3px solid rgba(74,222,128,0.15);
+    border-top-color:#4ade80;
+    border-radius:50%;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ld-text{font-family:system-ui,sans-serif;font-size:12px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;}
+
+  /* HUD siempre encima */
+  #hud{
+    position:fixed;inset:0;z-index:100;
+    pointer-events:none;
+  }
+
+  /* Brackets */
+  .vb{position:absolute;width:28px;height:28px;}
+  .vb.tl{top:16px;left:16px;border-top:2.5px solid rgba(74,222,128,0.6);border-left:2.5px solid rgba(74,222,128,0.6);border-radius:3px 0 0 0;}
+  .vb.tr{top:16px;right:16px;border-top:2.5px solid rgba(74,222,128,0.6);border-right:2.5px solid rgba(74,222,128,0.6);border-radius:0 3px 0 0;}
+  .vb.bl{bottom:16px;left:16px;border-bottom:2.5px solid rgba(74,222,128,0.6);border-left:2.5px solid rgba(74,222,128,0.6);border-radius:0 0 0 3px;}
+  .vb.br{bottom:16px;right:16px;border-bottom:2.5px solid rgba(74,222,128,0.6);border-right:2.5px solid rgba(74,222,128,0.6);border-radius:0 0 4px 0;}
+
+  /* Scan line */
+  #scanLine{
+    position:absolute;left:10%;right:10%;height:1.5px;
+    background:linear-gradient(90deg,transparent,rgba(74,222,128,0.7),transparent);
+    animation:scanv 2.2s ease-in-out infinite;
+  }
+  @keyframes scanv{
+    0%{top:15%;opacity:0} 8%{opacity:1}
+    92%{opacity:1} 100%{top:82%;opacity:0}
+  }
+
+  /* Hint */
+  #hint{
+    position:absolute;bottom:44px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.5);
+    border:1px solid rgba(74,222,128,0.3);
+    border-radius:50px;padding:9px 20px;
+    font-family:system-ui,sans-serif;font-size:12px;font-weight:600;
+    color:rgba(255,255,255,0.75);letter-spacing:0.5px;white-space:nowrap;
+    transition:color .3s,border-color .3s;
+  }
+  #hint.found{color:#4ade80;border-color:rgba(74,222,128,0.7);}
+
+  /* A-Frame ocupa todo */
+  a-scene{
+    position:fixed!important;
+    top:0!important;left:0!important;
+    width:100%!important;height:100%!important;
+  }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-ring"></div>
+  <div class="ld-text">Iniciando cámara AR</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="vb tl"></div>
+  <div class="vb tr"></div>
+  <div class="vb bl"></div>
+  <div class="vb br"></div>
+  <div id="scanLine"></div>
+  <div id="hint">Apunta a la tarjeta</div>
+</div>
+
+<!-- ESCENA AR — autoStart -->
+<a-scene
+  id="arScene"
+  mindar-image="imageTargetSrc: targets.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.001; filterBeta: 0.01;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+  embedded>
+
+  <a-assets timeout="10000">
+    <a-asset-item id="avatarModel" src="JCC.glb"></a-asset-item>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+
+    <!-- Plataforma / sombra -->
+    <a-circle
+      position="0 0 0"
+      rotation="-90 0 0"
+      radius="0.22"
+      color="#031c0c"
+      opacity="0.35"
+    ></a-circle>
+
+    <!-- Ring giratorio -->
+    <a-ring
+      position="0 0.001 0"
+      rotation="-90 0 0"
+      radius-inner="0.21"
+      radius-outer="0.23"
+      color="#4ade80"
+      opacity="0.9"
+      animation="property: rotation; to: -90 0 360; loop: true; dur: 3000; easing: linear"
+    ></a-ring>
+
+    <!-- Modelo GLB -->
+    <a-gltf-model
+      src="#avatarModel"
+      position="0 0.35 0"
+      scale="0.28 0.28 0.28"
+      rotation="0 0 0"
+      animation__rot="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear"
+      animation__bob="property: position; to: 0 0.40 0; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine"
+    ></a-gltf-model>
+
+    <!-- Nombre -->
+    <a-text
+      value="Juan Carlos Córdova"
+      position="0 0.78 0"
+      align="center"
+      color="#ffffff"
+      width="1.1"
+      wrap-count="22"
+    ></a-text>
+
+    <!-- Cargo -->
+    <a-text
+      value="Baker Hughes"
+      position="0 0.67 0"
+      align="center"
+      color="#4ade80"
+      width="0.85"
+    ></a-text>
+
+    <!-- Iconos flotantes: WhatsApp -->
+    <a-plane
+      position="-0.28 0.55 0"
+      width="0.12" height="0.12"
+      color="#25D366"
+      rounded="0.02"
+      animation="property: position; to: -0.28 0.58 0; dir: alternate; loop: true; dur: 1600; easing: easeInOutSine"
+    ></a-plane>
+
+    <!-- Icono LinkedIn -->
+    <a-plane
+      position="0 0.58 0"
+      width="0.12" height="0.12"
+      color="#0077b5"
+      animation="property: position; to: 0 0.62 0; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine"
+    ></a-plane>
+
+    <!-- Icono Email -->
+    <a-plane
+      position="0.28 0.55 0"
+      width="0.12" height="0.12"
+      color="#4ade80"
+      animation="property: position; to: 0.28 0.58 0; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine"
+    ></a-plane>
+
+  </a-entity>
+
+</a-scene>
+
+<script>
+  const loading = document.getElementById('loading');
+  const hint = document.getElementById('hint');
+  const scanLine = document.getElementById('scanLine');
+  const arScene = document.getElementById('arScene');
+
+  // Ocultar loading cuando la escena esté lista
+  arScene.addEventListener('loaded', () => {
+    setTimeout(() => {
+      loading.classList.add('fade');
+      setTimeout(() => loading.style.display = 'none', 450);
+    }, 800);
+  });
+
+  // Target encontrado
+  document.addEventListener('DOMContentLoaded', () => {
+    const targets = document.querySelectorAll('[mindar-image-target]');
+    targets.forEach(t => {
+      t.addEventListener('targetFound', () => {
+        hint.textContent = '✓ Tarjeta detectada';
+        hint.classList.add('found');
+        scanLine.style.animationPlayState = 'paused';
+        scanLine.style.opacity = '0';
+      });
+      t.addEventListener('targetLost', () => {
+        hint.textContent = 'Apunta a la tarjeta';
+        hint.classList.remove('found');
+        scanLine.style.animationPlayState = 'running';
+        scanLine.style.opacity = '1';
+      });
+    });
+  });
+</script>
+</body>
+</html>
