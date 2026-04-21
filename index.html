@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AR · Juan Carlos Córdova</title>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/aframe@1.4.2/dist/aframe.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:system-ui,sans-serif;}
+
+  /* ── PANTALLA TAP ── */
+  #tap{
+    position:fixed;inset:0;z-index:999;
+    background:#031c0c;
+    display:flex;flex-direction:column;
+    align-items:center;justify-content:center;
+  }
+
+  /* fondo con círculos sutiles */
+  #tap::before{
+    content:'';position:absolute;inset:0;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(14,102,48,0.25) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(14,102,48,0.2) 0%, transparent 50%);
+    pointer-events:none;
+  }
+
+  .tap-inner{
+    display:flex;flex-direction:column;
+    align-items:center;gap:0;
+    position:relative;z-index:2;
+  }
+
+  /* Avatar silhouette / ícono AR */
+  .tap-icon{
+    width:100px;height:100px;
+    border-radius:50%;
+    border:2px solid rgba(74,222,128,0.3);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:28px;
+    position:relative;
+    animation:iconpulse 2s ease-in-out infinite;
+  }
+  .tap-icon::before{
+    content:'';position:absolute;inset:-8px;
+    border-radius:50%;
+    border:1px solid rgba(74,222,128,0.15);
+    animation:iconpulse 2s ease-in-out infinite reverse;
+  }
+  @keyframes iconpulse{
+    0%,100%{transform:scale(1);opacity:1;}
+    50%{transform:scale(1.05);opacity:0.7;}
+  }
+  .tap-icon svg{width:48px;height:48px;}
+
+  .tap-name{
+    font-size:20px;font-weight:700;
+    color:#fff;letter-spacing:-0.3px;
+    margin-bottom:6px;
+  }
+  .tap-title{
+    font-size:11px;font-weight:600;
+    color:#4ade80;letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:48px;
+  }
+
+  /* Botón TAP — ocupa casi todo el ancho, muy visible */
+  #tapBtn{
+    width:calc(100vw - 48px);max-width:320px;
+    height:64px;
+    background:linear-gradient(135deg,#0e6630,#22c55e);
+    border:none;border-radius:50px;
+    color:#fff;font-size:16px;font-weight:700;
+    letter-spacing:0.3px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:12px;
+    box-shadow:0 8px 32px rgba(34,197,94,0.35);
+    position:relative;overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #tapBtn::after{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);
+  }
+  #tapBtn:active{transform:scale(0.97);}
+  #tapBtn svg{width:22px;height:22px;flex-shrink:0;}
+
+  .btn-pulse{
+    width:9px;height:9px;border-radius:50%;
+    background:#fff;flex-shrink:0;
+    animation:bpulse 1.5s ease-in-out infinite;
+  }
+  @keyframes bpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.3;transform:scale(0.5)}}
+
+  .tap-hint{
+    margin-top:16px;font-size:11px;
+    color:rgba(255,255,255,0.25);letter-spacing:0.3px;
+  }
+
+  /* ── LOADING ── */
+  #loading{
+    position:fixed;inset:0;z-index:998;
+    background:#031c0c;
+    display:none;
+    flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;
+  }
+  .ld-ring{
+    width:40px;height:40px;
+    border:3px solid rgba(74,222,128,0.15);
+    border-top-color:#4ade80;
+    border-radius:50%;animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .ld-text{font-size:11px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;}
+
+  /* ── HUD ── */
+  #hud{
+    position:fixed;inset:0;z-index:100;
+    pointer-events:none;display:none;
+  }
+  .vb{position:absolute;width:26px;height:26px;}
+  .vb.tl{top:16px;left:16px;border-top:2.5px solid rgba(74,222,128,0.6);border-left:2.5px solid rgba(74,222,128,0.6);border-radius:3px 0 0 0;}
+  .vb.tr{top:16px;right:16px;border-top:2.5px solid rgba(74,222,128,0.6);border-right:2.5px solid rgba(74,222,128,0.6);border-radius:0 3px 0 0;}
+  .vb.bl{bottom:16px;left:16px;border-bottom:2.5px solid rgba(74,222,128,0.6);border-left:2.5px solid rgba(74,222,128,0.6);border-radius:0 0 0 3px;}
+  .vb.br{bottom:16px;right:16px;border-bottom:2.5px solid rgba(74,222,128,0.6);border-right:2.5px solid rgba(74,222,128,0.6);border-radius:0 0 4px 0;}
+
+  #scanLine{
+    position:absolute;left:8%;right:8%;height:1.5px;
+    background:linear-gradient(90deg,transparent,rgba(74,222,128,0.7),transparent);
+    animation:scanv 2.2s ease-in-out infinite;
+  }
+  @keyframes scanv{
+    0%{top:15%;opacity:0}8%{opacity:1}
+    92%{opacity:1}100%{top:82%;opacity:0}
+  }
+
+  #hint{
+    position:absolute;bottom:40px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.55);
+    border:1px solid rgba(74,222,128,0.3);
+    border-radius:50px;padding:9px 22px;
+    font-size:12px;font-weight:600;
+    color:rgba(255,255,255,0.7);letter-spacing:0.5px;
+    white-space:nowrap;transition:color .3s,border-color .3s;
+  }
+  #hint.found{color:#4ade80;border-color:rgba(74,222,128,0.7);}
+
+  a-scene{
+    position:fixed!important;
+    top:0!important;left:0!important;
+    width:100%!important;height:100%!important;
+  }
+</style>
+</head>
+<body>
+
+<!-- PANTALLA TAP -->
+<div id="tap">
+  <div class="tap-inner">
+    <div class="tap-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <div class="tap-name">Juan Carlos Córdova</div>
+    <div class="tap-title">Baker Hughes · AR</div>
+    <button id="tapBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      Toca para ver en AR
+      <div class="btn-pulse"></div>
+    </button>
+    <div class="tap-hint">Apunta a la tarjeta al activar</div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-ring"></div>
+  <div class="ld-text">Activando cámara...</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="vb tl"></div><div class="vb tr"></div>
+  <div class="vb bl"></div><div class="vb br"></div>
+  <div id="scanLine"></div>
+  <div id="hint">Apunta a la tarjeta</div>
+</div>
+
+<!-- ESCENA AR -->
+<a-scene
+  id="arScene"
+  mindar-image="imageTargetSrc: targets.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no; filterMinCF: 0.001; filterBeta: 0.01;"
+  color-space="sRGB"
+  renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;"
+  vr-mode-ui="enabled: false"
+  device-orientation-permission-ui="enabled: false"
+  embedded>
+
+  <a-assets timeout="15000">
+    <a-asset-item id="avatarModel" src="JCC.glb"></a-asset-item>
+  </a-assets>
+
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+
+    <!-- Plataforma -->
+    <a-circle position="0 0 0" rotation="-90 0 0" radius="0.22" color="#031c0c" opacity="0.35"></a-circle>
+
+    <!-- Ring giratorio -->
+    <a-ring
+      position="0 0.001 0" rotation="-90 0 0"
+      radius-inner="0.21" radius-outer="0.235"
+      color="#4ade80" opacity="0.85"
+      animation="property: rotation; to: -90 0 360; loop: true; dur: 3000; easing: linear"
+    ></a-ring>
+
+    <!-- Modelo -->
+    <a-gltf-model
+      src="#avatarModel"
+      position="0 0.35 0"
+      scale="0.28 0.28 0.28"
+      animation__rot="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear"
+      animation__bob="property: position; to: 0 0.40 0; dir: alternate; loop: true; dur: 1800; easing: easeInOutSine"
+    ></a-gltf-model>
+
+    <!-- Nombre -->
+    <a-text value="Juan Carlos Córdova" position="0 0.78 0" align="center" color="#ffffff" width="1.1" wrap-count="22"></a-text>
+    <a-text value="Baker Hughes" position="0 0.67 0" align="center" color="#4ade80" width="0.85"></a-text>
+
+    <!-- Íconos flotantes -->
+    <a-plane position="-0.28 0.55 0" width="0.11" height="0.11" color="#25D366"
+      animation="property: position; to: -0.28 0.59 0; dir: alternate; loop: true; dur: 1600; easing: easeInOutSine">
+    </a-plane>
+    <a-plane position="0 0.58 0" width="0.11" height="0.11" color="#0077b5"
+      animation="property: position; to: 0 0.62 0; dir: alternate; loop: true; dur: 2000; easing: easeInOutSine">
+    </a-plane>
+    <a-plane position="0.28 0.55 0" width="0.11" height="0.11" color="#4ade80"
+      animation="property: position; to: 0.28 0.59 0; dir: alternate; loop: true; dur: 1400; easing: easeInOutSine">
+    </a-plane>
+
+  </a-entity>
+</a-scene>
+
+<script>
+  const tap     = document.getElementById('tap');
+  const loading = document.getElementById('loading');
+  const hud     = document.getElementById('hud');
+  const hint    = document.getElementById('hint');
+  const scanLine= document.getElementById('scanLine');
+  const arScene = document.getElementById('arScene');
+  const tapBtn  = document.getElementById('tapBtn');
+
+  tapBtn.addEventListener('click', () => {
+    // Ocultar tap, mostrar loading
+    tap.style.display = 'none';
+    loading.style.display = 'flex';
+
+    // Arrancar AR
+    arScene.addEventListener('loaded', () => {
+      const sys = arScene.systems['mindar-image-system'];
+      if (sys) {
+        sys.start().then(() => {
+          loading.style.display = 'none';
+          hud.style.display = 'block';
+        });
+      } else {
+        loading.style.display = 'none';
+        hud.style.display = 'block';
+      }
+    }, { once: true });
+  });
+
+  // Target detectado / perdido
+  document.addEventListener('DOMContentLoaded', () => {
+    const targets = document.querySelectorAll('[mindar-image-target]');
+    targets.forEach(t => {
+      t.addEventListener('targetFound', () => {
+        hint.textContent = '✓ Tarjeta detectada';
+        hint.classList.add('found');
+        scanLine.style.opacity = '0';
+      });
+      t.addEventListener('targetLost', () => {
+        hint.textContent = 'Apunta a la tarjeta';
+        hint.classList.remove('found');
+        scanLine.style.opacity = '1';
+      });
+    });
+  });
+</script>
+</body>
+</html>
